@@ -129,9 +129,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
   const [stream, setStream]           = useState(null)
   const [camErr, setCamErr]           = useState(null)
   const [useFallback, setUseFallback] = useState(false)
-  const [hasCapture, setHasCapture]   = useState(false)  // triggers re-render when photo taken
-  const capturedImgRef                = useRef(null)   // HTMLImageElement for fallback
-  const fileInputRef                  = useRef(null)
+  const [hasCapture, setHasCapture]   = useState(false)
+  const capturedImgRef                = useRef(null)
   const videoRef                      = useRef(null)
   const canvasRef                     = useRef(null)
   const rafRef                        = useRef(null)
@@ -173,6 +172,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     capturedImgRef.current = null
     setHasCapture(false)
     setUseFallback(false)
+
   }, [stream])
 
   /* ── cleanup on unmount ── */
@@ -392,6 +392,9 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     const data = { obj, rect: { ...rect } }
     setCalData(data); calDataRef.current = data
     setRect(null); rectRef.current = null
+    // reset capture so user takes a fresh pothole photo in camera phase
+    capturedImgRef.current = null
+    setHasCapture(false)
     setPhase('camera')
   }
 
@@ -594,8 +597,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </p>
           </div>
 
-          {/* hidden file input for iOS fallback */}
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          {/* file input — label triggers it (iOS safe) */}
+          <input id="cal-photo-input" type="file" accept="image/*" capture="environment"
             className="hidden" onChange={handleFileCapture} />
 
           {/* live video (non-fallback) */}
@@ -604,21 +607,23 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
           )}
 
-          {/* fallback: no image yet — show Take Photo button */}
+          {/* fallback: no image yet */}
           {useFallback && !hasCapture && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
-              <div className="text-center text-gray-300 text-sm">
-                Take a photo of your <span className="text-blue-300 font-semibold">{CAL_OBJECTS.find(o=>o.id===calObjId)?.label}</span> placed beside the pothole.
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
+              <div className="text-center">
+                <p className="text-white font-semibold mb-1">Step 1: Calibrate</p>
+                <p className="text-gray-400 text-sm">
+                  Place your <span className="text-blue-300 font-semibold">{CAL_OBJECTS.find(o=>o.id===calObjId)?.label}</span> flat beside the pothole and take a photo.
+                </p>
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="py-3 px-8 rounded-2xl bg-blue-500 hover:bg-blue-400 text-white font-bold flex items-center gap-2"
-              >
+              <label htmlFor="cal-photo-input"
+                className="py-3 px-8 rounded-2xl bg-blue-500 active:bg-blue-600 text-white font-bold flex items-center gap-2 cursor-pointer select-none">
                 <Camera className="w-5 h-5" /> Take Photo
-              </button>
+              </label>
             </div>
           )}
 
+          {/* canvas on top of video/image */}
           <canvas
             ref={canvasRef}
             className="absolute inset-0 w-full h-full touch-none"
@@ -634,19 +639,16 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
             <div className="text-center">
-              {rect && (
-                <div className="text-xs text-blue-300 font-semibold">
-                  Outlined — drag corners to adjust
-                </div>
-              )}
+              {rect && <div className="text-xs text-blue-300 font-semibold">Outlined — drag corners to adjust</div>}
               {useFallback && hasCapture && !rect && (
-                <button onClick={() => { capturedImgRef.current = null; setHasCapture(false); fileInputRef.current?.click() }}
-                  className="text-xs text-amber-400 underline">Retake Photo</button>
+                <label htmlFor="cal-photo-input"
+                  className="text-xs text-amber-400 underline cursor-pointer"
+                  onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
+                  Retake Photo
+                </label>
               )}
             </div>
-            <button
-              disabled={!rect}
-              onClick={confirmCalibration}
+            <button disabled={!rect} onClick={confirmCalibration}
               className="flex items-center gap-1.5 text-sm font-bold text-blue-400 hover:text-blue-200 disabled:opacity-30 disabled:pointer-events-none">
               Measure Pothole <ChevronRight className="w-4 h-4" />
             </button>
@@ -666,8 +668,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </div>
           )}
 
-          {/* hidden file input for iOS fallback */}
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          {/* file input — label triggers it (iOS safe) */}
+          <input id="cam-photo-input" type="file" accept="image/*" capture="environment"
             className="hidden" onChange={handleFileCapture} />
 
           {/* live video (non-fallback) */}
@@ -676,18 +678,19 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
           )}
 
-          {/* fallback: no image yet — show Take Photo button */}
+          {/* fallback: no image yet */}
           {useFallback && !hasCapture && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
-              <div className="text-center text-gray-300 text-sm">
-                Take a photo of the <span className="text-amber-300 font-semibold">pothole</span> from directly above.
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
+              <div className="text-center">
+                <p className="text-white font-semibold mb-1">Step 2: Measure Pothole</p>
+                <p className="text-gray-400 text-sm">
+                  Take a photo of the <span className="text-amber-300 font-semibold">pothole</span> from directly above.
+                </p>
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="py-3 px-8 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold flex items-center gap-2"
-              >
+              <label htmlFor="cam-photo-input"
+                className="py-3 px-8 rounded-2xl bg-amber-500 active:bg-amber-600 text-black font-bold flex items-center gap-2 cursor-pointer select-none">
                 <Camera className="w-5 h-5" /> Take Photo
-              </button>
+              </label>
             </div>
           )}
 
@@ -730,8 +733,11 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               })()}
               {!rect && !useFallback && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
               {!rect && useFallback && hasCapture && (
-                <button onClick={() => { capturedImgRef.current = null; setHasCapture(false); fileInputRef.current?.click() }}
-                  className="text-xs text-amber-400 underline">Retake Photo</button>
+                <label htmlFor="cam-photo-input"
+                  className="text-xs text-amber-400 underline cursor-pointer"
+                  onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
+                  Retake Photo
+                </label>
               )}
             </div>
             <button
