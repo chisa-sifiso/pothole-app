@@ -253,7 +253,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     const ro = new ResizeObserver(sync)
     ro.observe(canvas)
     return () => ro.disconnect()
-  }, [phase])
+  }, [phase, hasCapture])   // re-run when canvas appears after photo taken
 
   /* ── RAF draw loop ── */
   useEffect(() => {
@@ -304,7 +304,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     }
     rafRef.current = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [phase, phoneH])   // phoneH intentionally kept — scale recalculates live
+  }, [phase, phoneH, hasCapture])   // hasCapture: restart RAF when photo loaded
 
   /* ═══ pointer interaction ═══ */
   function canvasXY(e) {
