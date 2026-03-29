@@ -129,6 +129,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
   const [stream, setStream]           = useState(null)
   const [camErr, setCamErr]           = useState(null)
   const [useFallback, setUseFallback] = useState(false)
+  const [hasCapture, setHasCapture]   = useState(false)  // triggers re-render when photo taken
   const capturedImgRef                = useRef(null)   // HTMLImageElement for fallback
   const fileInputRef                  = useRef(null)
   const videoRef                      = useRef(null)
@@ -170,6 +171,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     if (stream) { stream.getTracks().forEach((t) => t.stop()); setStream(null) }
     cancelAnimationFrame(rafRef.current)
     capturedImgRef.current = null
+    setHasCapture(false)
     setUseFallback(false)
   }, [stream])
 
@@ -189,6 +191,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
       capturedImgRef.current = img
       setRect(null)
       rectRef.current = null
+      setHasCapture(true)   // triggers re-render to show canvas
     }
     img.src = url
     e.target.value = ''
@@ -602,7 +605,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
           )}
 
           {/* fallback: no image yet — show Take Photo button */}
-          {useFallback && !capturedImgRef.current && (
+          {useFallback && !hasCapture && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
               <div className="text-center text-gray-300 text-sm">
                 Take a photo of your <span className="text-blue-300 font-semibold">{CAL_OBJECTS.find(o=>o.id===calObjId)?.label}</span> placed beside the pothole.
@@ -636,8 +639,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
                   Outlined — drag corners to adjust
                 </div>
               )}
-              {useFallback && capturedImgRef.current && !rect && (
-                <button onClick={() => fileInputRef.current?.click()}
+              {useFallback && hasCapture && !rect && (
+                <button onClick={() => { capturedImgRef.current = null; setHasCapture(false); fileInputRef.current?.click() }}
                   className="text-xs text-amber-400 underline">Retake Photo</button>
               )}
             </div>
@@ -674,7 +677,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
           )}
 
           {/* fallback: no image yet — show Take Photo button */}
-          {useFallback && !capturedImgRef.current && (
+          {useFallback && !hasCapture && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
               <div className="text-center text-gray-300 text-sm">
                 Take a photo of the <span className="text-amber-300 font-semibold">pothole</span> from directly above.
@@ -726,8 +729,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
                 return <div className="text-amber-400 font-bold text-sm">{lCm} × {wCm} cm</div>
               })()}
               {!rect && !useFallback && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
-              {!rect && useFallback && capturedImgRef.current && (
-                <button onClick={() => { capturedImgRef.current = null; fileInputRef.current?.click() }}
+              {!rect && useFallback && hasCapture && (
+                <button onClick={() => { capturedImgRef.current = null; setHasCapture(false); fileInputRef.current?.click() }}
                   className="text-xs text-amber-400 underline">Retake Photo</button>
               )}
             </div>
