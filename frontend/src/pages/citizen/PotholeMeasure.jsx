@@ -45,9 +45,7 @@ function drawOverlay(ctx, cw, ch, rect, scale, isCalibrate, hintPulse) {
   ctx.clearRect(0, 0, cw, ch)
 
   if (!rect) {
-    // dim + pulsing crosshair hint
-    ctx.fillStyle = `rgba(0,0,0,${0.30 + 0.10 * Math.sin(hintPulse)})`
-    ctx.fillRect(0, 0, cw, ch)
+    // pulsing crosshair hint — no dark fill so video shows through
     ctx.strokeStyle = `rgba(255,255,255,${0.5 + 0.3 * Math.sin(hintPulse)})`
     ctx.lineWidth = 1.5
     ctx.setLineDash([8, 8])
@@ -238,9 +236,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
       const ch  = canvas.height
       const ctx = canvas.getContext('2d')
 
-      if (video && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, cw, ch)
-      }
+      // Video is shown natively behind the canvas on iOS — no drawImage needed
 
       const r   = rectRef.current
       const cd  = calDataRef.current
@@ -562,11 +558,12 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
 
           {/* hidden video */}
           <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
-            className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none" />
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
           <canvas
             ref={canvasRef}
-            className="flex-1 w-full touch-none"
+            className="absolute inset-0 w-full h-full touch-none"
+            style={{ background: 'transparent' }}
             onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
             onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
           />
@@ -607,11 +604,12 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
           )}
 
           <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
-            className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none" />
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
           <canvas
             ref={canvasRef}
-            className="flex-1 w-full touch-none"
+            className="absolute inset-0 w-full h-full touch-none"
+            style={{ background: 'transparent' }}
             onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
             onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
           />
