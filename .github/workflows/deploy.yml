@@ -1,0 +1,38 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 13.60.227.32
+          username: ec2-user
+          key: ${{ secrets.EC2_DEPLOY_KEY }}
+          script: |
+            echo "Pulling latest code..."
+            cd /opt/pothole/app && git pull origin main
+
+            echo "Building backend..."
+            cd /opt/pothole/app/backend
+            mvn package -DskipTests -q
+            cp target/pothole-0.0.1-SNAPSHOT.jar /opt/pothole/backend/app.jar
+
+            echo "Building frontend..."
+            cd /opt/pothole/app/frontend
+            sed -i '/@rolldown\/binding-win32/d' package.json
+            npm install --prefer-offline
+            npm run build
+            cp -r dist/* /opt/pothole/frontend/
+
+            echo "Restarting services..."
+            sudo systemctl restart pothole-backend pothole-ai nginx
+
+            echo "Deployed successfully!"
