@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":8080\")",
+      "Bash(where mvn:*)",
+      "Bash(where mvnw:*)",
+      "Bash(java -version)",
+      "Read(//c/Program Files/Java/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(where choco:*)",
+      "Bash(where scoop:*)",
+      "Bash(powershell -Command \"if \\(Test-Path ''C:\\\\maven\\\\apache-maven-3.9.6\\\\bin\\\\mvn.cmd''\\) { Write-Host ''Maven already installed'' } else { Write-Host ''Maven not found'' }\")",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -Command \"& ''C:\\\\maven\\\\apache-maven-3.9.6\\\\bin\\\\mvn.cmd'' --version\")",
+      "Bash(\"C:/maven/apache-maven-3.9.6/bin/mvn.cmd\" compile:*)",
+      "Bash(powershell -Command \"Get-Service -Name postgresql* 2>$null | Select-Object Name,Status; netstat -an | findstr '':5432''\")",
+      "Bash(powershell -Command \"Get-Service | Where-Object {$_Name -like ''*postgres*'' -or $_Name -like ''*pg*''} | Select-Object Name, Status\")",
+      "Bash(sc query:*)",
+      "Bash(docker --version)",
+      "Bash(start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(docker run:*)"
+    ]
+  }
+}

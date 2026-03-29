@@ -1,0 +1,2 @@
+# Place trained MobileNetV2 weights here as: pothole_mobilenetv2.h5
+# Until weights are present, the service runs in mock/heuristic mode.
