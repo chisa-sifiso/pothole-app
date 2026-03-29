@@ -128,6 +128,9 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
   /* ── camera / canvas ── */
   const [stream, setStream]           = useState(null)
   const [camErr, setCamErr]           = useState(null)
+  const [useFallback, setUseFallback] = useState(false)
+  const capturedImgRef                = useRef(null)   // HTMLImageElement for fallback
+  const fileInputRef                  = useRef(null)
   const videoRef                      = useRef(null)
   const canvasRef                     = useRef(null)
   const rafRef                        = useRef(null)
@@ -166,6 +169,8 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
   const stopStream = useCallback(() => {
     if (stream) { stream.getTracks().forEach((t) => t.stop()); setStream(null) }
     cancelAnimationFrame(rafRef.current)
+    capturedImgRef.current = null
+    setUseFallback(false)
   }, [stream])
 
   /* ── cleanup on unmount ── */
@@ -174,10 +179,33 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     cancelAnimationFrame(rafRef.current)
   }, [stopStream])
 
+  /* ── file capture fallback (iOS HTTP) ── */
+  const handleFileCapture = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      capturedImgRef.current = img
+      setRect(null)
+      rectRef.current = null
+    }
+    img.src = url
+    e.target.value = ''
+  }, [])
+
   /* ── start camera ── */
   const startCamera = useCallback(async () => {
     setCamErr(null)
     cancelAnimationFrame(rafRef.current)
+    capturedImgRef.current = null
+
+    // iOS on HTTP — mediaDevices is undefined, use file input fallback
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setUseFallback(true)
+      return
+    }
+
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -188,10 +216,14 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
         audio: false,
       })
       setStream(s)
+      setUseFallback(false)
     } catch (err) {
+      if (err.name === 'SecurityError' || err.name === 'NotAllowedError') {
+        setUseFallback(true)
+        return
+      }
       const msg =
-        err.name === 'NotAllowedError'  ? 'Camera permission denied. Please allow camera access in your browser settings.' :
-        err.name === 'NotFoundError'    ? 'No camera found on this device.' :
+        err.name === 'NotFoundError'        ? 'No camera found on this device.' :
         err.name === 'OverconstrainedError' ? 'Could not access the rear camera. Try again.' :
         'Camera unavailable: ' + err.message
       setCamErr(msg)
@@ -236,7 +268,10 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
       const ch  = canvas.height
       const ctx = canvas.getContext('2d')
 
-      // Video is shown natively behind the canvas on iOS — no drawImage needed
+      // Draw video frame (desktop) or captured photo (iOS fallback)
+      if (capturedImgRef.current) {
+        ctx.drawImage(capturedImgRef.current, 0, 0, cw, ch)
+      }
 
       const r   = rectRef.current
       const cd  = calDataRef.current
@@ -556,9 +591,30 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </p>
           </div>
 
-          {/* hidden video */}
-          <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+          {/* hidden file input for iOS fallback */}
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+            className="hidden" onChange={handleFileCapture} />
+
+          {/* live video (non-fallback) */}
+          {!useFallback && (
+            <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+          )}
+
+          {/* fallback: no image yet — show Take Photo button */}
+          {useFallback && !capturedImgRef.current && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+              <div className="text-center text-gray-300 text-sm">
+                Take a photo of your <span className="text-blue-300 font-semibold">{CAL_OBJECTS.find(o=>o.id===calObjId)?.label}</span> placed beside the pothole.
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="py-3 px-8 rounded-2xl bg-blue-500 hover:bg-blue-400 text-white font-bold flex items-center gap-2"
+              >
+                <Camera className="w-5 h-5" /> Take Photo
+              </button>
+            </div>
+          )}
 
           <canvas
             ref={canvasRef}
@@ -579,6 +635,10 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
                 <div className="text-xs text-blue-300 font-semibold">
                   Outlined — drag corners to adjust
                 </div>
+              )}
+              {useFallback && capturedImgRef.current && !rect && (
+                <button onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-amber-400 underline">Retake Photo</button>
               )}
             </div>
             <button
@@ -603,8 +663,30 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </div>
           )}
 
-          <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+          {/* hidden file input for iOS fallback */}
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+            className="hidden" onChange={handleFileCapture} />
+
+          {/* live video (non-fallback) */}
+          {!useFallback && (
+            <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+          )}
+
+          {/* fallback: no image yet — show Take Photo button */}
+          {useFallback && !capturedImgRef.current && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+              <div className="text-center text-gray-300 text-sm">
+                Take a photo of the <span className="text-amber-300 font-semibold">pothole</span> from directly above.
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="py-3 px-8 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold flex items-center gap-2"
+              >
+                <Camera className="w-5 h-5" /> Take Photo
+              </button>
+            </div>
+          )}
 
           <canvas
             ref={canvasRef}
@@ -643,7 +725,11 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
                 const lCm   = Math.max(1, Math.round(rect.h * scale))
                 return <div className="text-amber-400 font-bold text-sm">{lCm} × {wCm} cm</div>
               })()}
-              {!rect && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
+              {!rect && !useFallback && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
+              {!rect && useFallback && capturedImgRef.current && (
+                <button onClick={() => { capturedImgRef.current = null; fileInputRef.current?.click() }}
+                  className="text-xs text-amber-400 underline">Retake Photo</button>
+              )}
             </div>
             <button
               disabled={!rect}
