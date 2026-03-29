@@ -623,36 +623,40 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </div>
           )}
 
-          {/* canvas on top of video/image */}
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 w-full h-full touch-none"
-            style={{ background: 'transparent' }}
-            onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
-            onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
-          />
+          {/* canvas — only shown when video is live OR photo captured */}
+          {(!useFallback || hasCapture) && (
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full touch-none"
+              style={{ background: 'transparent' }}
+              onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
+              onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
+            />
+          )}
 
-          {/* bottom bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-4 px-4 flex items-center justify-between shrink-0">
-            <button onClick={() => { stopStream(); setPhase('intro') }}
-              className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
-              <ChevronLeft className="w-4 h-4" /> Back
-            </button>
-            <div className="text-center">
-              {rect && <div className="text-xs text-blue-300 font-semibold">Outlined — drag corners to adjust</div>}
-              {useFallback && hasCapture && !rect && (
-                <label htmlFor="cal-photo-input"
-                  className="text-xs text-amber-400 underline cursor-pointer"
-                  onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
-                  Retake Photo
-                </label>
-              )}
+          {/* bottom bar — only shown when ready to draw */}
+          {(!useFallback || hasCapture) && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-4 px-4 flex items-center justify-between shrink-0">
+              <button onClick={() => { stopStream(); setPhase('intro') }}
+                className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
+                <ChevronLeft className="w-4 h-4" /> Back
+              </button>
+              <div className="text-center">
+                {rect && <div className="text-xs text-blue-300 font-semibold">Outlined — drag corners to adjust</div>}
+                {useFallback && hasCapture && !rect && (
+                  <label htmlFor="cal-photo-input"
+                    className="text-xs text-amber-400 underline cursor-pointer"
+                    onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
+                    Retake Photo
+                  </label>
+                )}
+              </div>
+              <button disabled={!rect} onClick={confirmCalibration}
+                className="flex items-center gap-1.5 text-sm font-bold text-blue-400 hover:text-blue-200 disabled:opacity-30 disabled:pointer-events-none">
+                Measure Pothole <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-            <button disabled={!rect} onClick={confirmCalibration}
-              className="flex items-center gap-1.5 text-sm font-bold text-blue-400 hover:text-blue-200 disabled:opacity-30 disabled:pointer-events-none">
-              Measure Pothole <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -694,59 +698,67 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
             </div>
           )}
 
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 w-full h-full touch-none"
-            style={{ background: 'transparent' }}
-            onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
-            onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
-          />
-
-          {/* phone height chip */}
-          <div className="absolute top-10 right-3 bg-black/60 rounded-full px-3 py-1 text-xs text-amber-400 font-semibold">
-            {phoneH} cm
-          </div>
-
-          {/* redraw button */}
-          {rect && (
-            <button
-              onClick={() => { setRect(null); rectRef.current = null }}
-              className="absolute top-10 left-3 bg-black/60 rounded-full px-3 py-1 text-xs text-gray-300 flex items-center gap-1">
-              <RotateCcw className="w-3 h-3" /> Redraw
-            </button>
+          {/* canvas — only when live video OR photo captured */}
+          {(!useFallback || hasCapture) && (
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full touch-none"
+              style={{ background: 'transparent' }}
+              onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
+              onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
+            />
           )}
 
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-4 px-4 flex items-center justify-between shrink-0">
-            <button
-              onClick={() => { if (useCalibration) { setRect(null); rectRef.current = null; setPhase('calibrate') } else { stopStream(); setPhase('intro') } }}
-              className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
-              <ChevronLeft className="w-4 h-4" /> Back
-            </button>
-            <div className="text-center">
-              {rect && (() => {
-                const canvas = canvasRef.current
-                if (!canvas) return null
-                const scale = cmPerPx(calData, canvas.width, canvas.height, phoneH, beta)
-                const wCm   = Math.max(1, Math.round(rect.w * scale))
-                const lCm   = Math.max(1, Math.round(rect.h * scale))
-                return <div className="text-amber-400 font-bold text-sm">{lCm} × {wCm} cm</div>
-              })()}
-              {!rect && !useFallback && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
-              {!rect && useFallback && hasCapture && (
-                <label htmlFor="cam-photo-input"
-                  className="text-xs text-amber-400 underline cursor-pointer"
-                  onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
-                  Retake Photo
-                </label>
+          {/* controls — only when ready */}
+          {(!useFallback || hasCapture) && (
+            <>
+              {/* phone height chip */}
+              <div className="absolute top-10 right-3 bg-black/60 rounded-full px-3 py-1 text-xs text-amber-400 font-semibold">
+                {phoneH} cm
+              </div>
+
+              {/* redraw button */}
+              {rect && (
+                <button
+                  onClick={() => { setRect(null); rectRef.current = null }}
+                  className="absolute top-10 left-3 bg-black/60 rounded-full px-3 py-1 text-xs text-gray-300 flex items-center gap-1">
+                  <RotateCcw className="w-3 h-3" /> Redraw
+                </button>
               )}
-            </div>
-            <button
-              disabled={!rect}
-              onClick={confirmMeasurement}
-              className="flex items-center gap-1.5 text-sm font-bold text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none">
-              Confirm <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-4 px-4 flex items-center justify-between shrink-0">
+                <button
+                  onClick={() => { if (useCalibration) { setRect(null); rectRef.current = null; setPhase('calibrate') } else { stopStream(); setPhase('intro') } }}
+                  className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
+                  <ChevronLeft className="w-4 h-4" /> Back
+                </button>
+                <div className="text-center">
+                  {rect && (() => {
+                    const canvas = canvasRef.current
+                    if (!canvas) return null
+                    const scale = cmPerPx(calData, canvas.width, canvas.height, phoneH, beta)
+                    const wCm   = Math.max(1, Math.round(rect.w * scale))
+                    const lCm   = Math.max(1, Math.round(rect.h * scale))
+                    return <div className="text-amber-400 font-bold text-sm">{lCm} × {wCm} cm</div>
+                  })()}
+                  {!rect && !useFallback && <div className="text-xs text-gray-400">Drag to outline pothole</div>}
+                  {!rect && useFallback && hasCapture && (
+                    <label htmlFor="cam-photo-input"
+                      className="text-xs text-amber-400 underline cursor-pointer"
+                      onClick={() => { capturedImgRef.current = null; setHasCapture(false) }}>
+                      Retake Photo
+                    </label>
+                  )}
+                </div>
+                <button
+                  disabled={!rect}
+                  onClick={confirmMeasurement}
+                  className="flex items-center gap-1.5 text-sm font-bold text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none">
+                  Confirm <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
