@@ -89,10 +89,11 @@ public class BidService {
         report.setStatus(ReportStatus.ASSIGNED);
         potholeReportRepository.save(report);
 
-        // Create repair task
+        // Create repair task — copy the original pothole image as the "before" reference
         RepairTask task = RepairTask.builder()
                 .bid(winningBid)
                 .status(TaskStatus.ASSIGNED)
+                .beforeImageUrl(report.getImageUrl())
                 .build();
         repairTaskRepository.save(task);
 

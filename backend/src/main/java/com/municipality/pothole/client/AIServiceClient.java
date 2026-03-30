@@ -48,7 +48,8 @@ public class AIServiceClient {
                     AIAnalysisResult.class
             );
 
-            return response.getBody();
+            AIAnalysisResult result = response.getBody();
+            return result != null ? result : fallbackResult();
         } catch (IOException e) {
             log.error("Failed to read image bytes for AI analysis", e);
             return fallbackResult();

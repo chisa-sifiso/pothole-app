@@ -1,8 +1,9 @@
 import client from './client'
 
-export const reportPothole = (formData) =>
+export const reportPothole = (formData, onUploadProgress) =>
   client.post('/potholes/report', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
   })
 
 export const getAllReports = (params) =>

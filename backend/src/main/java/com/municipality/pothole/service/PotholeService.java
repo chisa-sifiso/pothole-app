@@ -54,21 +54,27 @@ public class PotholeService {
 
         report = potholeReportRepository.save(report);
 
-        // Call AI service
-        AIAnalysisResult aiResult = aiServiceClient.analyzeImage(image);
-        log.info("AI analysis for report {}: isPothole={}, severity={}, confidence={}",
-                report.getId(), aiResult.isPothole(), aiResult.getSeverity(), aiResult.getConfidence());
+        // Call AI service — wrapped so a downed AI service doesn't fail the whole report
+        try {
+            AIAnalysisResult aiResult = aiServiceClient.analyzeImage(image);
+            log.info("AI analysis for report {}: isPothole={}, severity={}, confidence={}",
+                    report.getId(), aiResult.isPothole(), aiResult.getSeverity(), aiResult.getConfidence());
 
-        if (aiResult.isPothole()) {
-            report.setStatus(ReportStatus.AI_VERIFIED);
-            report.setSeverity(parseSeverity(aiResult.getSeverity()));
-        } else {
-            report.setStatus(ReportStatus.REJECTED);
+            if (aiResult.isPothole()) {
+                report.setStatus(ReportStatus.AI_VERIFIED);
+                report.setSeverity(parseSeverity(aiResult.getSeverity()));
+            } else {
+                report.setStatus(ReportStatus.REJECTED);
+            }
+
+            report.setAiConfidence(BigDecimal.valueOf(aiResult.getConfidence()));
+            report.setEstimatedDiameter(BigDecimal.valueOf(aiResult.getEstimatedDiameterCm()));
+            report.setEstimatedDepth(BigDecimal.valueOf(aiResult.getEstimatedDepthCm()));
+        } catch (Exception e) {
+            log.warn("AI service unavailable for report {} — leaving as PENDING_AI for manual review: {}",
+                    report.getId(), e.getMessage());
+            // report stays PENDING_AI — municipal official can manually verify
         }
-
-        report.setAiConfidence(BigDecimal.valueOf(aiResult.getConfidence()));
-        report.setEstimatedDiameter(BigDecimal.valueOf(aiResult.getEstimatedDiameterCm()));
-        report.setEstimatedDepth(BigDecimal.valueOf(aiResult.getEstimatedDepthCm()));
 
         report = potholeReportRepository.save(report);
         return toResponse(report);

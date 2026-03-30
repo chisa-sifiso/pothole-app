@@ -91,6 +91,7 @@ export default function ReportPothole() {
   const [file, setFile]               = useState(null)
   const [address, setAddress]         = useState('')
   const [submitting, setSubmitting]   = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [result, setResult]           = useState(null)
   const [showMeasure, setShowMeasure] = useState(false)
   const [measurements, setMeasurements] = useState(null)
@@ -107,6 +108,7 @@ export default function ReportPothole() {
     if (!coords) { toast.error('Location not available'); return }
 
     setSubmitting(true)
+    setUploadProgress(0)
     try {
       const formData = new FormData()
       formData.append('image', file)
@@ -122,13 +124,18 @@ export default function ReportPothole() {
         formData.append('concreteKg',     measurements.concreteKg)
       }
 
-      const res = await reportPothole(formData)
+      const onUploadProgress = (e) => {
+        if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100))
+      }
+
+      const res = await reportPothole(formData, onUploadProgress)
       setResult(res.data)
       toast.success('Pothole reported successfully!')
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to submit report')
     } finally {
       setSubmitting(false)
+      setUploadProgress(0)
     }
   }
 
@@ -309,12 +316,31 @@ export default function ReportPothole() {
             />
           </div>
 
+          {submitting && uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Uploading image…</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full bg-blue-500 transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={submitting || locLoading || !file}
             className="btn-primary w-full"
           >
-            {submitting ? 'Analysing pothole...' : 'Submit Report'}
+            {submitting
+              ? uploadProgress < 100
+                ? `Uploading… ${uploadProgress}%`
+                : 'Analysing with AI…'
+              : 'Submit Report'}
           </button>
         </form>
       </div>

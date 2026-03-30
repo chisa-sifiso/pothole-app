@@ -13,8 +13,16 @@ function decodeToken(t) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'))
-  const [user, setUser]   = useState(() => {
+  const [token, setToken] = useState(() => {
+    const t = localStorage.getItem('token')
+    if (t && !decodeToken(t)) {
+      // Token exists but is expired — purge it immediately
+      localStorage.removeItem('token')
+      return null
+    }
+    return t
+  })
+  const [user, setUser] = useState(() => {
     const t = localStorage.getItem('token')
     return t ? decodeToken(t) : null
   })
