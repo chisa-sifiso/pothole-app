@@ -41,12 +41,11 @@ const HANDLE_R = 30   // px — touch hit radius for corner handles
 const d2r = (d) => (d * Math.PI) / 180
 
 /* ─── canvas draw ────────────────────────────────────────────── */
-function drawOverlay(ctx, cw, ch, rect, scale, isCalibrate, hintPulse) {
-  // NOTE: clearRect is called by the RAF loop BEFORE this function,
-  // so the background image is drawn first, then overlay on top.
+function drawOverlay(ctx, cw, ch, rect, scale, isCalibrate, hintPulse, bgImage) {
+  // bgImage: the captured photo (fallback mode) or null (live video mode)
 
   if (!rect) {
-    // pulsing crosshair hint — no dark fill so video shows through
+    // pulsing crosshair hint
     ctx.strokeStyle = `rgba(255,255,255,${0.5 + 0.3 * Math.sin(hintPulse)})`
     ctx.lineWidth = 1.5
     ctx.setLineDash([8, 8])
@@ -65,7 +64,19 @@ function drawOverlay(ctx, cw, ch, rect, scale, isCalibrate, hintPulse) {
   // darken outside selection
   ctx.fillStyle = 'rgba(0,0,0,0.45)'
   ctx.fillRect(0, 0, cw, ch)
-  ctx.clearRect(rect.x, rect.y, rect.w, rect.h)
+
+  // show the original (bright) image inside the selected area
+  if (bgImage) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(rect.x, rect.y, rect.w, rect.h)
+    ctx.clip()
+    ctx.drawImage(bgImage, 0, 0, cw, ch)
+    ctx.restore()
+  } else {
+    // live video — punch hole so video shows through
+    ctx.clearRect(rect.x, rect.y, rect.w, rect.h)
+  }
 
   // border
   const color = isCalibrate ? '#60A5FA' : '#F59E0B'
@@ -289,7 +300,7 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
         ? cmPerPx(isCalibrate ? null : cd, cw, ch, phoneH, b)
         : 0
 
-      drawOverlay(ctx, cw, ch, r, scale, isCalibrate, hintPulseRef.current)
+      drawOverlay(ctx, cw, ch, r, scale, isCalibrate, hintPulseRef.current, capturedImgRef.current)
 
       // tilt bar (camera phase only)
       if (!isCalibrate) {
@@ -313,24 +324,25 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
   }, [phase, phoneH, hasCapture])   // hasCapture: restart RAF when photo loaded
 
   /* ═══ pointer interaction ═══ */
-  function canvasXY(e) {
+  const canvasXY = useCallback((e) => {
     const canvas = canvasRef.current
+    if (!canvas) return [0, 0]
     const b      = canvas.getBoundingClientRect()
     const src    = e.touches ? e.touches[0] : e
     const scaleX = canvas.width  / b.width
     const scaleY = canvas.height / b.height
     return [(src.clientX - b.left) * scaleX, (src.clientY - b.top) * scaleY]
-  }
+  }, [])
 
-  function hitCorner(r, px, py) {
+  const hitCorner = useCallback((r, px, py) => {
     const pts = { TL:[r.x,r.y], TR:[r.x+r.w,r.y], BL:[r.x,r.y+r.h], BR:[r.x+r.w,r.y+r.h] }
     for (const [k,[cx,cy]] of Object.entries(pts)) {
       if (Math.hypot(px-cx, py-cy) < HANDLE_R) return k
     }
     return null
-  }
+  }, [])
 
-  const onDown = (e) => {
+  const onDown = useCallback((e) => {
     e.preventDefault()
     const [px, py] = canvasXY(e)
     const r        = rectRef.current
@@ -351,9 +363,9 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     dragOrigin.current = { px, py }
     const newR = { x: px, y: py, w: 1, h: 1 }
     setRect(newR); rectRef.current = newR
-  }
+  }, [canvasXY, hitCorner])
 
-  const onMove = (e) => {
+  const onMove = useCallback((e) => {
     if (!dragging.current) return
     e.preventDefault()
     const [px, py] = canvasXY(e)
@@ -374,9 +386,26 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
     }
     r.w = Math.max(r.w, 10); r.h = Math.max(r.h, 10)
     setRect(r); rectRef.current = r
-  }
+  }, [canvasXY])
 
-  const onUp = () => { dragging.current = null; dragOrigin.current = null }
+  const onUp = useCallback(() => {
+    dragging.current = null; dragOrigin.current = null
+  }, [])
+
+  /* ── non-passive touch listeners for iOS (prevents scroll while drawing) ── */
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const opts = { passive: false }
+    canvas.addEventListener('touchstart', onDown, opts)
+    canvas.addEventListener('touchmove',  onMove, opts)
+    canvas.addEventListener('touchend',   onUp,   opts)
+    return () => {
+      canvas.removeEventListener('touchstart', onDown)
+      canvas.removeEventListener('touchmove',  onMove)
+      canvas.removeEventListener('touchend',   onUp)
+    }
+  }, [phase, hasCapture, onDown, onMove, onUp])
 
   /* ═══ transitions ═══ */
   const goToCalibrate = async () => {
@@ -636,7 +665,6 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               className="absolute inset-0 w-full h-full touch-none"
               style={{ background: 'transparent' }}
               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
-              onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
             />
           )}
 
@@ -711,7 +739,6 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
               className="absolute inset-0 w-full h-full touch-none"
               style={{ background: 'transparent' }}
               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
-              onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
             />
           )}
 
