@@ -42,7 +42,8 @@ const d2r = (d) => (d * Math.PI) / 180
 
 /* ─── canvas draw ────────────────────────────────────────────── */
 function drawOverlay(ctx, cw, ch, rect, scale, isCalibrate, hintPulse) {
-  ctx.clearRect(0, 0, cw, ch)
+  // NOTE: clearRect is called by the RAF loop BEFORE this function,
+  // so the background image is drawn first, then overlay on top.
 
   if (!rect) {
     // pulsing crosshair hint — no dark fill so video shows through
@@ -271,10 +272,15 @@ export default function PotholeMeasure({ onClose, onConfirm }) {
       const ch  = canvas.height
       const ctx = canvas.getContext('2d')
 
-      // Draw video frame (desktop) or captured photo (iOS fallback)
+      // 1. Clear canvas
+      ctx.clearRect(0, 0, cw, ch)
+
+      // 2. Draw background — captured photo (iOS) or nothing (live video shown behind canvas)
       if (capturedImgRef.current) {
         ctx.drawImage(capturedImgRef.current, 0, 0, cw, ch)
       }
+
+      // 3. Overlay drawn on top (drawOverlay no longer calls clearRect)
 
       const r   = rectRef.current
       const cd  = calDataRef.current
