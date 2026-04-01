@@ -7,7 +7,7 @@ import MapView from '../../components/map/MapView'
 import SeverityBadge from '../../components/common/SeverityBadge'
 import StatusBadge from '../../components/common/StatusBadge'
 import { formatDateTime } from '../../utils/formatters'
-import { X, FileText, CheckCircle } from 'lucide-react'
+import { X, FileText, CheckCircle, MapPin } from 'lucide-react'
 
 const SEVERITIES = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 
@@ -21,7 +21,7 @@ export default function ReportsMap() {
 
   const load = (sev) => {
     getAllReports(sev ? { severity: sev } : {})
-      .then((res) => setReports(res.data))
+      .then(res => setReports(res.data))
       .catch(() => toast.error('Failed to load reports'))
   }
 
@@ -49,7 +49,7 @@ export default function ReportsMap() {
       await generateRFQ(selected.id, { deadline: deadline.toISOString() })
       load(severity)
       setSelected(null)
-      toast.success('RFQ generated successfully!')
+      toast.success('RFQ generated!')
       navigate('/rfqs')
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to generate RFQ')
@@ -59,101 +59,125 @@ export default function ReportsMap() {
   }
 
   return (
-    <div className="relative h-full">
+    <div style={{ position: 'relative', height: '100%' }}>
+
       {/* Filter bar */}
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-3 flex gap-2 flex-wrap">
-        {SEVERITIES.map((s) => (
-          <button
-            key={s || 'all'}
-            onClick={() => setSeverity(s)}
-            className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors
-              ${severity === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}
-          >
-            {s || 'All'}
-          </button>
-        ))}
-        <span className="text-xs text-gray-400 self-center ml-2">{reports.length} reports</span>
+      <div style={{
+        position: 'absolute', top: 16, left: 16, zIndex: 10,
+        background: 'rgba(6,8,15,0.88)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(148,163,184,0.1)',
+        borderRadius: 12, padding: '10px 12px',
+        display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+      }}>
+        {SEVERITIES.map(s => {
+          const active = severity === s
+          return (
+            <button key={s || 'all'} onClick={() => setSeverity(s)} style={{
+              padding: '4px 12px', borderRadius: 100, cursor: 'pointer',
+              fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', border: '1px solid',
+              transition: 'all 0.2s',
+              background: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
+              color: active ? '#60a5fa' : '#64748b',
+              borderColor: active ? 'rgba(59,130,246,0.35)' : 'rgba(148,163,184,0.1)',
+            }}>
+              {s || 'All'}
+            </button>
+          )
+        })}
+        <span style={{ fontSize: 11, color: '#334155', marginLeft: 4 }}>{reports.length} reports</span>
       </div>
 
-      <MapView
-        potholes={reports}
-        onMarkerClick={setSelected}
-      />
+      <MapView potholes={reports} onMarkerClick={setSelected} />
 
       {/* Side panel */}
       {selected && (
-        <div className="absolute top-0 right-0 h-full w-80 bg-white shadow-xl overflow-y-auto z-10">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h3 className="font-semibold text-gray-900">Report #{selected.id}</h3>
-            <button onClick={() => setSelected(null)}>
-              <X className="w-5 h-5 text-gray-400" />
+        <div style={{
+          position: 'absolute', top: 0, right: 0, height: '100%', width: 300,
+          background: 'rgba(6,8,15,0.94)',
+          backdropFilter: 'blur(20px)',
+          borderLeft: '1px solid rgba(148,163,184,0.1)',
+          overflowY: 'auto', zIndex: 10,
+          display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Panel header */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '14px 16px',
+            borderBottom: '1px solid rgba(148,163,184,0.08)',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>
+              Report #{selected.id}
+            </span>
+            <button onClick={() => setSelected(null)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#475569', padding: 4, display: 'flex', alignItems: 'center',
+              transition: 'color 0.2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = '#f1f5f9'}
+              onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+            >
+              <X style={{ width: 16, height: 16 }} />
             </button>
           </div>
 
+          {/* Image */}
           {selected.imageUrl && (
-            <img src={selected.imageUrl} alt="Pothole" className="w-full h-48 object-cover" />
+            <img src={selected.imageUrl} alt="Pothole"
+              style={{ width: '100%', height: 180, objectFit: 'cover' }} />
           )}
 
-          <div className="p-4 space-y-3">
-            <div className="flex gap-2 flex-wrap">
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+            {/* Badges */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <SeverityBadge severity={selected.severity} />
               <StatusBadge status={selected.status} />
             </div>
 
+            {/* Address */}
             {selected.address && (
-              <p className="text-sm text-gray-600">{selected.address}</p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <MapPin style={{ width: 12, height: 12, color: '#475569', marginTop: 2, flexShrink: 0 }} />
+                <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.5 }}>{selected.address}</p>
+              </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-gray-400">Lat</span>
-                <p className="font-medium">{Number(selected.latitude).toFixed(5)}</p>
-              </div>
-              <div>
-                <span className="text-gray-400">Lng</span>
-                <p className="font-medium">{Number(selected.longitude).toFixed(5)}</p>
-              </div>
-              {selected.aiConfidence != null && (
-                <div>
-                  <span className="text-gray-400">AI Confidence</span>
-                  <p className="font-medium">{Math.round(selected.aiConfidence * 100)}%</p>
+            {/* Stats grid */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+            }}>
+              {[
+                ['Latitude',    Number(selected.latitude).toFixed(5)],
+                ['Longitude',   Number(selected.longitude).toFixed(5)],
+                selected.aiConfidence != null && ['AI Confidence', `${Math.round(selected.aiConfidence * 100)}%`],
+                selected.estimatedDiameter && ['Diameter', `${selected.estimatedDiameter} cm`],
+                selected.estimatedDepth    && ['Depth',    `${selected.estimatedDepth} cm`],
+              ].filter(Boolean).map(([label, val]) => (
+                <div key={label} style={{
+                  background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 10px',
+                  border: '1px solid rgba(148,163,184,0.07)',
+                }}>
+                  <p style={{ fontSize: 10, color: '#334155', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</p>
+                  <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, fontWeight: 600 }}>{val}</p>
                 </div>
-              )}
-              {selected.estimatedDiameter && (
-                <div>
-                  <span className="text-gray-400">Diameter</span>
-                  <p className="font-medium">{selected.estimatedDiameter} cm</p>
-                </div>
-              )}
-              {selected.estimatedDepth && (
-                <div>
-                  <span className="text-gray-400">Depth</span>
-                  <p className="font-medium">{selected.estimatedDepth} cm</p>
-                </div>
-              )}
+              ))}
             </div>
 
-            <p className="text-xs text-gray-400">{formatDateTime(selected.createdAt)}</p>
+            <p style={{ fontSize: 11, color: '#334155', margin: 0 }}>{formatDateTime(selected.createdAt)}</p>
 
-            <div className="flex flex-col gap-2 pt-2">
+            {/* Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto' }}>
               {selected.status === 'PENDING_AI' && (
-                <button
-                  onClick={handleVerify}
-                  disabled={verifying}
-                  className="btn-secondary flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  {verifying ? 'Verifying...' : 'Manually Verify'}
+                <button onClick={handleVerify} disabled={verifying} className="btn-secondary" style={{ justifyContent: 'center' }}>
+                  <CheckCircle style={{ width: 14, height: 14 }} />
+                  {verifying ? 'Verifying…' : 'Manually Verify'}
                 </button>
               )}
               {selected.status === 'AI_VERIFIED' && (
-                <button
-                  onClick={handleGenerateRFQ}
-                  disabled={generating}
-                  className="btn-primary flex items-center justify-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  {generating ? 'Generating...' : 'Generate RFQ'}
+                <button onClick={handleGenerateRFQ} disabled={generating} className="btn-primary" style={{ justifyContent: 'center' }}>
+                  <FileText style={{ width: 14, height: 14 }} />
+                  {generating ? 'Generating…' : 'Generate RFQ'}
                 </button>
               )}
             </div>
